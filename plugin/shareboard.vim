@@ -3,17 +3,19 @@ if exists('g:shareboard_loaded')
 endif
 let g:shareboard_loaded = 1
 
-let g:shareboard_path = get(g:, 'shareboard_path', 'shareboard')
+let g:shareboard_path = shellescape(get(g:, 'shareboard_path', 'shareboard'))
 let g:shareboard_host = get(g:, 'shareboard_host', 'localhost')
 let g:shareboard_port = get(g:, 'shareboard_port', '8081')
-let g:shareboard_command = get(g:, 'shareboard_command', "pandoc -Ss -m -t html")
+let g:shareboard_command = get(g:, 'shareboard_command', "pandoc -Ss -m -t html --toc")
 let g:shareboard_compile_ext = get(g:, 'shareboard_compile_ext', ".html")
 let g:shareboard_use_default_mapping = get(g:, 'shareboard_use_default_mapping', 1)
-"let g:shareboard_debug = 1
+let g:shareboard_debug = 1
 
 function! s:Get()
   let l:lines = getline(1, '$')
-  return substitute(shellescape(join(l:lines, "\n")), "\\\\\n", "\n", "g")
+  let l:str = shellescape(substitute(join(l:lines, "\n"), "\([\n#&|()\^]\)", "^\1", "g"), 1)
+  execute "echo " . l:str
+  return l:str
 endfunction
 
 
@@ -28,7 +30,8 @@ function! s:Exec(command, null)
             \ shellescape(g:shareboard_python_path),
             \ a:command)
     else
-      silent exe "!start pythonw " . shellescape(a:command)
+"      silent exe "!start pythonw " . shellescape(a:command)
+      exe "!start pythonw " . a:command
     endif
   else
     if a:null
@@ -64,13 +67,16 @@ function! s:Start()
 endfunction
 
 function! s:Update()
-  let l:command = printf('%s -o %s -p %s set %s --filename %s',
+  let b:tmpfile = tempname()
+  execute "write! " . b:tmpfile
+  let l:command = printf('cat %s | pythonw %s -o %s -p %s set --filename %s',
+  	\ shellescape(b:tmpfile),
         \ g:shareboard_path,
         \ g:shareboard_host,
         \ g:shareboard_port,
-        \ s:Get(),
         \ shellescape(expand("%:p")))
-  call s:Exec(l:command, 1)
+"  call s:Exec(l:command, 1)
+  execute "!" . l:command
 endfunction
 
 function! s:Preview()
@@ -80,11 +86,13 @@ function! s:Preview()
 endfunction
 
 function! s:Compile()
-  let l:command = printf('echo -nE %s | %s | tee %s',
-        \ s:Get(),
+  let b:tmpfile = tempname()
+  execute "write! " . b:tmpfile
+  let l:command = printf('%s %s | tee %s',
         \ g:shareboard_command,
-        \ shellescape(expand("%:r:h") . g:shareboard_compile_ext))
-  call s:Exec(l:command, 0)
+  	\ b:tmpfile,
+        \ expand("%:r:h") . g:shareboard_compile_ext)
+  silent execute "!" . l:command
 endfunction
 
 command! ShareboardStart call <SID>Start()
