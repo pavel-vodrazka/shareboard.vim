@@ -1,5 +1,5 @@
 if exists('g:shareboard_loaded')
-  finish
+	finish
 endif
 let g:shareboard_loaded = 1
 
@@ -9,7 +9,11 @@ function! s:Init()
 	if exists('g:shareboard_python_path')
 		let b:shareboard_python_path_user = g:shareboard_python_path
 	endif
-	let b:shareboard_python_path_default = 'pythonw'
+	if has('win32') || has('win64')
+		let b:shareboard_python_path_default = 'pythonw'
+	else
+		let b:shareboard_python_path_default = 'python'
+	endif
 
 	if exists('g:shareboard_command')
 		let b:shareboard_command_user = g:shareboard_command
@@ -29,79 +33,100 @@ function! s:Init()
 	let g:shareboard_compile_ext = get(g:, 'shareboard_compile_ext', ".html")
 	let g:shareboard_debug = get(g:, 'shareboard_debug', 0)
 
-	call system(shellescape(g:shareboard_python_path) . ' -V')
+	call system(g:shareboard_python_path . ' -V')
 	let b:shareboard_python_path_ok = eval('v:shell_error == 0 ? 1 : 0')
-	if !b:shareboard_python_path_ok && exists(b:shareboard_python_path_user)
-		call system(shellescape(b:shareboard_python_path_default) . ' -V')
+	if !b:shareboard_python_path_ok && exists('b:shareboard_python_path_user')
+		call system(b:shareboard_python_path_default . ' -V')
 		if !v:shell_error
-			echo "You have incorrectly defined g:shareboard_python_path = " . g:shareboard_python_path 
-						\ . ". The default (" . b:shareboard_python_path_default . ") works. "
+			echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_python_path = " . g:shareboard_python_path 
+						\ . " or it is not executable. "
+						\ . "The default (" . b:shareboard_python_path_default . ") works. "
 						\ . "You need to remove or redefine the custom python path to be "
-						\ . "able to process and preview this type of documents."
-						\ . "\n(shareboard.vim plugin)"
+						\ . "able to process and preview this type of documents. "
+						\ . "(shareboard.vim plugin)" | echohl none
+			return 1
 		else
-			echo "You have incorrectly defined g:shareboard_python_path = " - g:shareboard_python_path
+			echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_python_path = " - g:shareboard_python_path
+						\ . " or it is not executable. "
 						\ . ". The default (" . b:shareboard_python_path_default . ") also doesn't work. "
 						\ . "Check whether you have python installed and in path "
 						\ . "and remove the custom command, or redefine the custom command."
-						\ . "\n(shareboard.vim plugin)"
+						\ . " (shareboard.vim plugin)" | echohl none
+			return 1
 		endif
-	elseif !b:shareboard_python_path_ok && !exists(b:shareboard_python_path_user)
-		echo "The default g:shareboard_python_path doesn't work for you. You need it to process and preview "
+	elseif !b:shareboard_python_path_ok && !exists('b:shareboard_python_path_user')
+		echohl WarningMsg | echomsg "The default g:shareboard_python_path doesn't work for you. You need it to process and preview "
 					\ . "this type of documents. Check whether you have python "
-					\ . "installed and in path, or define a custom command."
-					\ . "\n(shareboard.vim plugin)"
-	endif
-
-	call system('echo test | ' . g:shareboard_command)
-	let b:shareboard_command_working = eval('v:shell_error == 0 ? 1 : 0')
-	if !b:shareboard_command_working && exists(b:shareboard_command_user)
-		call system('echo test | ' . b:shareboard_command_default)
-		if !v:shell_error
-			echo "You have incorrectly defined g:shareboard_command = " . g:shareboard_command 
-						\ . ". The default (" . b:shareboard_command_default . ") works. "
-						\ . "You need to remove or redefine the custom command to be "
-						\ . "able to process and preview this type of documents."
-						\ . "\n(shareboard.vim plugin)"
-		else
-			echo "You have incorrectly defined g:shareboard_command = " - g:shareboard_command
-						\ . ". The default (" . b:shareboard_command_default . ") also doesn't work. "
-						\ . "Check whether you have the default executable installed and in path "
-						\ . "and remove the custom command, or redefine the custom command."
-						\ . "\n(shareboard.vim plugin)"
-		endif
-	elseif !b:shareboard_command_working && !exists(b:shareboard_command_user)
-		echo "The default g:shareboard_command doesn't work for you. You need it to process and preview "
-					\ . "this type of documents. Check whether you have the default executable "
-					\ . "installed and in path, or define a custom command."
-					\ . "\n(shareboard.vim plugin)"
+					\ . "installed, in path, and executable, or define a custom command. "
+					\ . "(shareboard.vim plugin)" | echohl none
+		return 1
 	endif
 
 	if b:shareboard_python_path_ok
-		call system(printf('%s %s -h', shellescape(g:shareboard_python_path), shellescape(g:shareboard_path)))
-		let b:shareboard_path_ok = eval('v:shell_error == 0 ? 1 : 0')
-		if !b:shareboard_path_ok && exists(b:shareboard_path_user)
-			call system(shellescape(g:shareboard_python_path) . shellescape(b:shareboard_path_default) . ' -h')
+		call system('echo test | ' . g:shareboard_command)
+		let b:shareboard_command_working = eval('v:shell_error == 0 ? 1 : 0')
+		if !b:shareboard_command_working && exists('b:shareboard_command_user')
+			call system('echo test | ' . b:shareboard_command_default)
 			if !v:shell_error
-				echo "You have incorrectly defined g:shareboard_path = " . g:shareboard_path 
-							\ . ". The default (" . b:shareboard_path_default . ") works. "
+				echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_command = " . g:shareboard_command 
+							\ . ". The default (" . b:shareboard_command_default . ") works. "
 							\ . "You need to remove or redefine the custom command to be "
-							\ . "able to preview this type of documents."
-							\ . "\n(shareboard.vim plugin)"
+							\ . "able to process and preview this type of documents."
+							\ . " (shareboard.vim plugin)" | echohl none
+				return 1
 			else
-				echo "You have incorrectly defined g:shareboard_path = " - g:shareboard_path
-							\ . ". The default (" . b:shareboard_path_default . ") also doesn't work. "
-							\ . "Check whether you have the default shareboard script installed and in path "
+				echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_command = " . g:shareboard_command
+							\ . ". The default (" . b:shareboard_command_default . ") also doesn't work. "
+							\ . "Check whether you have the default executable installed and in path "
 							\ . "and remove the custom command, or redefine the custom command."
-							\ . "\n(shareboard.vim plugin)"
+							\ . " (shareboard.vim plugin)" | echohl none
+				return 1
 			endif
-		elseif !b:shareboard_path_ok && !exists(b:shareboard_path_user)
-			echo "The default g:shareboard_path doesn't work for you. You need it to preview "
-						\ . "this type of documents. Check whether you have the default shareboard script "
-						\ . "installed and in path, or define a custom command."
-						\ . "\n(shareboard.vim plugin)"
+		elseif !b:shareboard_command_working && !exists('b:shareboard_command_user')
+			echohl WarningMsg | echomsg "The default g:shareboard_command doesn't work for you. You need it to process and preview "
+						\ . "this type of documents. Check whether you have the default executable "
+						\ . "installed and in path, or define a custom command. "
+						\ . "(shareboard.vim plugin)" | echohl none
+			return 1
 		endif
 	endif
+
+	if b:shareboard_python_path_ok && b:shareboard_command_working
+		call system(printf('%s -h', g:shareboard_path))
+		let b:shareboard_path_ok = eval('v:shell_error == 0 ? 1 : 0')
+		if !b:shareboard_path_ok
+			call system(printf('%s %s -h', g:shareboard_python_path, g:shareboard_path))
+			let b:shareboard_path_ok = eval('v:shell_error == 0 ? 1 : 0')
+			if b:shareboard_path_ok
+				let g:shareboard_path = g:shareboard_python_path . " " . g:shareboard_path
+			endif
+		endif
+		if !b:shareboard_path_ok && exists('b:shareboard_path_user')
+			call system(b:shareboard_path_default . ' -h')
+			if !v:shell_error
+				echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_path = " . g:shareboard_path 
+							\ . ". The default (" . b:shareboard_path_default . ") works. "
+							\ . "You need to remove or redefine the custom command to be "
+							\ . "able to preview this type of documents. "
+							\ . "(shareboard.vim plugin)" | echohl none
+				return 1
+			else
+				echohl WarningMsg | echomsg "You have incorrectly defined g:shareboard_path = " . g:shareboard_path
+							\ . ". The default (" . b:shareboard_path_default . ") also doesn't work. "
+							\ . "Check whether you have the default shareboard script installed and in path "
+							\ . "and remove the custom command, or redefine the custom command. "
+							\ . "(shareboard.vim plugin)" | echohl none
+				return 1
+			endif
+		elseif !b:shareboard_path_ok && !exists('b:shareboard_path_user')
+			echohl WarningMsg | echomsg "The default g:shareboard_path doesn't work for you. You need it to preview "
+						\ . "this type of documents. Check whether you have the default shareboard script "
+						\ . "installed and in path, or define a custom command. "
+						\ . "(shareboard.vim plugin)" | echohl none
+			return 1
+		endif
+	endif
+	return 0
 endfunction
 
 function! s:Exec(command, pipe, null)
@@ -129,14 +154,16 @@ function! s:Exec(command, pipe, null)
 			    \ l:suffix))
     endif
   endif
+  return 0
 endfunction
 
 function! s:Start()
-  call s:Init()
-  let l:command = printf('%s %s -o %s -p %s start -v',
-	\ shellescape(g:shareboard_python_path), 
-        \ shellescape(g:shareboard_path),
-        \ shellescape(g:shareboard_host),
+  if s:Init()
+	  return 1
+  endif
+  let l:command = printf('%s -o %s -p %s start -v',
+        \ g:shareboard_path,
+        \ g:shareboard_host,
         \ g:shareboard_port)
   call s:Exec(l:command, 0, 1)
 
@@ -144,30 +171,38 @@ function! s:Start()
     autocmd!
     autocmd BufWritePost <buffer> call <SID>Update()
   augroup END
+
+  return 0
 endfunction
 
 function! s:Update()
-  let l:command = printf('%s | %s %s -o %s -p %s set -',
+  let l:command = printf('%s | %s -o %s -p %s set -',
   	\ g:shareboard_command,
-  	\ shellescape(g:shareboard_python_path),
-        \ shellescape(g:shareboard_path),
-        \ shellescape(g:shareboard_host),
+        \ g:shareboard_path,
+        \ g:shareboard_host,
         \ g:shareboard_port)
   call s:Exec(l:command, 1, 1)
+  return 0
 endfunction
 
 function! s:Preview()
-  call s:Start()
+  if s:Start()
+	  return 1
+  endif
   sleep 1
   call s:Update()
+  return 0
 endfunction
 
 function! s:Compile()
-  call s:Init()
+  if s:Init()
+	  return 1
+  endif
   let l:command = printf('%s -o %s',
 			  \ g:shareboard_command,
 			  \ shellescape(expand("%:r:h") . g:shareboard_compile_ext))
   call s:Exec(l:command, 1, 1)
+  return 0
 endfunction
 
 command! ShareboardInit call <SID>Init()
